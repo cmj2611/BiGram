@@ -13,7 +13,6 @@ class BigramModel:
         Bi-gram 모델 초기화
         """
         self.bigrams = defaultdict(Counter)
-        self.vocab = set()
 
     def preprocess_text(self, text: str) -> List[str]:
         """텍스트 전처리"""
@@ -39,10 +38,9 @@ class BigramModel:
 
         return bigrams
 
-    def train(self, text_file: str, max_lines: Optional[int] = None, verbose: bool = True):
+    def train(self, text_file: str, max_lines: Optional[int] = None):
         """텍스트 파일로부터 bi-gram 모델 학습"""
-        if verbose:
-            print("Bi-gram 모델 학습 시작...")
+        print("Bi-gram 모델 학습 시작...")
 
         if not os.path.exists(text_file):
             raise FileNotFoundError(f"학습 데이터 파일을 찾을 수 없습니다: {text_file}")
@@ -62,9 +60,6 @@ class BigramModel:
                     if len(tokens) < 2:  # 너무 짧은 문장은 제외
                         continue
 
-                    # 어휘에 추가
-                    self.vocab.update(tokens)
-
                     # bi-gram 생성 및 카운팅
                     bigrams = self.get_bigrams(tokens)
                     for bigram in bigrams:
@@ -73,16 +68,14 @@ class BigramModel:
                         self.bigrams[first_word][second_word] += 1
 
                     line_count += 1
-                    if verbose and line_count % 10000 == 0:
+                    if line_count % 10000 == 0:
                         print(f"처리된 라인: {line_count}")
 
         except UnicodeDecodeError:
             raise ValueError(f"파일 인코딩 오류: {text_file} (UTF-8로 저장되어야 합니다)")
 
-        if verbose:
-            print(f"학습 완료! 총 {line_count}줄 처리")
-            print(f"어휘 크기: {len(self.vocab)}")
-            print(f"Bi-gram 패턴 수: {len(self.bigrams)}")
+        print(f"학습 완료. 총 {line_count}줄 처리")
+        print(f"Bi-gram 패턴 수: {len(self.bigrams)}")
 
         if line_count == 0:
             raise ValueError("유효한 학습 데이터가 없습니다.")
@@ -101,8 +94,7 @@ class BigramModel:
 
         return probabilities
 
-    def complete_sentence(self, partial_sentence: str, max_words: int = 20,
-                         temperature: float = 1.0) -> str:
+    def complete_sentence(self, partial_sentence: str, max_words: int = 20, temperature: float = 1.0) -> str:
         """불완전한 문장을 완성"""
         if not partial_sentence.strip():
             return ""
@@ -160,23 +152,19 @@ class BigramModel:
 
         return ' '.join(generated_tokens)
 
-    def save_model(self, filepath: str, verbose: bool = True):
+    def save_model(self, filepath: str):
         """모델을 파일로 저장"""
-        model_data = {
-            'bigrams': dict(self.bigrams),
-            'vocab': list(self.vocab)
-        }
+        model_data = { 'bigrams': dict(self.bigrams) }
 
         try:
             with open(filepath, 'wb') as f:
                 pickle.dump(model_data, f)
 
-            if verbose:
-                print(f"모델이 {filepath}에 저장되었습니다.")
+            print(f"모델이 {filepath}에 저장되었습니다.")
         except Exception as e:
             raise IOError(f"모델 저장 실패: {e}")
 
-    def load_model(self, filepath: str, verbose: bool = True):
+    def load_model(self, filepath: str):
         """파일에서 모델 로드"""
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"모델 파일을 찾을 수 없습니다: {filepath}")
@@ -186,11 +174,6 @@ class BigramModel:
                 model_data = pickle.load(f)
 
             self.bigrams = defaultdict(Counter, model_data['bigrams'])
-            self.vocab = set(model_data['vocab'])
-
-            if verbose:
-                print(f"모델이 {filepath}에서 로드되었습니다.")
-                print(f"어휘 크기: {len(self.vocab)}, 패턴 수: {len(self.bigrams)}")
 
         except Exception as e:
             raise IOError(f"모델 로드 실패: {e}")
@@ -202,8 +185,8 @@ def train_command(args):
     model = BigramModel()
 
     try:
-        model.train(args.input_file, max_lines=args.max_lines, verbose=True)
-        model.save_model(args.output_model, verbose=True)
+        model.train(args.input_file, max_lines=args.max_lines)
+        model.save_model(args.output_model)
         print("학습이 완료되었습니다!")
 
     except Exception as e:
@@ -216,7 +199,7 @@ def batch_command(args):
     """배치 문장 완성 명령 실행"""
     try:
         model = BigramModel()
-        model.load_model(args.model_file, verbose=False)
+        model.load_model(args.model_file)
 
     except Exception as e:
         print(f"모델 로드 실패: {e}", file=sys.stderr)
